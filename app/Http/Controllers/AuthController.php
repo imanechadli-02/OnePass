@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\VerifiedDevice;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -48,19 +51,22 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $key = 'login-attempts:' . Str::lower($request->input('email'));
+
+        if (RateLimiter::tooManyAttempts($key, 10)) { // Max 5 attempts
+            return response()->json([
+                'message' => 'Too many login attempts. Please try again in ' . RateLimiter::availableIn($key) . ' seconds.'
+            ], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        $validatedData = $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json([
-                'message' => 'Invalid login details'
-            ], 401);
+        if (!auth()->attempt($validatedData)) {
+            RateLimiter::hit($key, 60); // Block for 60 seconds after limit
+            return response()->json(['message' => 'Invalid login credentials'], 401);
         }
 
         $user = User::where('email', $request->email)->first();
@@ -81,17 +87,24 @@ class AuthController extends Controller
             ], 200);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        RateLimiter::clear($key); // Reset limit after successful login
+
+        $token = auth()->user()->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token,
+            'message' => 'Login Successful',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
             'user' => $user
         ]);
     }
 
     public function logout(Request $request)
     {
+        if (!$request->user()) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
