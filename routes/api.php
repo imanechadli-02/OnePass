@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Middleware\IpRestrictionMiddleware;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Controllers\IpManagementController;
+use App\Http\Controllers\PasswordController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -13,6 +14,7 @@ Route::get('/user', function (Request $request) {
 
 // Blacklist routes (Only Admins)
 Route::middleware(['auth:sanctum', AdminMiddleware::class])->group(function () {
+
     Route::post('/ip/blacklist', [IpManagementController::class, 'addToBlacklist']);
     Route::delete('/ip/blacklist/{ip}', [IpManagementController::class, 'removeFromBlacklist']);
     Route::get('/blacklist', [IpManagementController::class, 'listBlacklist']);
@@ -30,4 +32,11 @@ Route::post('/ip/whitelist', [IpManagementController::class, 'addToWhitelist']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource("passwords", PasswordController::class);
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+
 
