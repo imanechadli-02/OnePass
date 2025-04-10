@@ -1,0 +1,1 @@
+select * from Onepass.liste_blanche_ips
