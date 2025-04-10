@@ -26,7 +26,7 @@ class AuthController extends Controller
                 'password' => bcrypt($validatedData['password']),
             ]);
 
-            // Check if user is created
+            
             if (!$user) {
                 return response()->json(['message' => 'User not created'], 500);
             }
@@ -48,7 +48,7 @@ class AuthController extends Controller
     {
         $key = 'login-attempts:' . Str::lower($request->input('email'));
 
-        if (RateLimiter::tooManyAttempts($key, 10)) { // Max 5 attempts
+        if (RateLimiter::tooManyAttempts($key, 10)) { 
             return response()->json([
                 'message' => 'Too many login attempts. Please try again in ' . RateLimiter::availableIn($key) . ' seconds.'
             ], Response::HTTP_TOO_MANY_REQUESTS);
@@ -60,11 +60,11 @@ class AuthController extends Controller
         ]);
 
         if (!auth()->attempt($validatedData)) {
-            RateLimiter::hit($key, 60); // Block for 60 seconds after limit
+            RateLimiter::hit($key, 60); 
             return response()->json(['message' => 'Invalid login credentials'], 401);
         }
 
-        RateLimiter::clear($key); // Reset limit after successful login
+        RateLimiter::clear($key); 
 
         $token = auth()->user()->createToken('auth_token')->plainTextToken;
 
